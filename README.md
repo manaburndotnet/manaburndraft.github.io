@@ -22,8 +22,9 @@ Software:
 
 Installation
 1. Clone this repository: git clone [https://github.com/yourusername/mtg-instant-draft.git](https://github.com/yourusername/mtg-instant-draft.git) cd mtg-instant-draft 
-2. Install the required Python dependencies: pip install "python-escpos[usb]" Pillow requests  Note: On Windows, you may need to set up Zadig USB drivers for python-escpos to communicate with your printer.
-3. Configure your Printer (Optional): Open the Python scripts and verify the VENDOR_ID and PRODUCT_ID. The default is 0x1fc9 and 0x2016 (Common for Vretti and Xprinter models). You can find your printer's IDs by looking at your system's USB device tree.
+2. Install the required Python dependencies: pip install "python-escpos[usb]"
+   (Pillow requests  Note: On Windows, you may need to set up Zadig USB drivers for python-escpos to communicate with your printer.)
+4. Configure your Printer (Optional): Open the Python scripts and verify the VENDOR_ID and PRODUCT_ID. The default is 0x1fc9 and 0x2016 (Common for Vretti and Xprinter models). You can find your printer's IDs by looking at your system's USB device tree.
 
 Usage
 1. Instant Draft Machine (instantdraft.py)
