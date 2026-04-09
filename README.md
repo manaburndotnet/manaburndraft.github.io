@@ -1,4 +1,5 @@
 MTG Instant Draft Machine
+
 The MTG Instant Draft Machine is a Python-based tool that generates highly customized Magic: The Gathering draft packs (Play Boosters, Draft Boosters, Jumpstart, Chaos, and Cube) using the Scryfall API, and prints them instantly to an 80mm thermal receipt printer.
 This repository includes a dynamic draft generator (instantdraft.py) and a dedicated print spooler for existing local images (print_spooler.py).
 
