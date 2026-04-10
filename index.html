@@ -4,45 +4,43 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MTG Instant Draft Machine</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- terminal-style monospace only -->
   <style>
     :root {
-      --bg: #0d1117;
-      --bg2: #161b22;
-      --bg3: #21262d;
-      --border: #30363d;
-      --text: #e6edf3;
-      --text2: #8b949e;
-      --text3: #6e7681;
-      --gold: #d4af37;
-      --gold-dim: rgba(212,175,55,0.15);
-      --gold-glow: rgba(212,175,55,0.4);
-      --purple: #8b5cf6;
-      --c-col: #6e7681;
-      --u-col: #8ecae6;
-      --r-col: #d4af37;
-      --m-col: #fb923c;
-      --radius: 8px;
+      --bg: #000000;
+      --bg2: #001100;
+      --bg3: #001a00;
+      --border: #003300;
+      --text: #00ff41;
+      --text2: #00aa00;
+      --text3: #005500;
+      --accent: #00ff41;
+      --accent-dim: rgba(0,255,65,0.1);
+      --accent-glow: rgba(0,255,65,0.3);
+      --c-col: #005500;
+      --u-col: #00aa00;
+      --r-col: #00ff41;
+      --m-col: #66ff99;
+      --radius: 2px;
       --card-radius: 4.75%/3.5%;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 16px; scroll-behavior: smooth; }
     body {
-      font-family: 'Inter', system-ui, sans-serif;
+      font-family: 'Courier New', Courier, monospace;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       line-height: 1.5;
     }
+    ::selection { background: #00ff41; color: #000; }
 
     /* ── HEADER ── */
     .app-header {
       text-align: center;
       padding: 48px 24px 32px;
       border-bottom: 1px solid var(--border);
-      background: linear-gradient(180deg, #0d1117 0%, #161b22 100%);
+      background: var(--bg);
       position: relative;
       overflow: hidden;
     }
@@ -50,15 +48,15 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse 60% 80% at 50% -20%, rgba(212,175,55,0.08) 0%, transparent 70%);
+      background: radial-gradient(ellipse 60% 80% at 50% -20%, rgba(0,255,65,0.06) 0%, transparent 70%);
       pointer-events: none;
     }
     .app-title {
-      font-family: 'Cinzel', serif;
+      font-family: inherit;
       font-size: clamp(1.8rem, 5vw, 3rem);
       font-weight: 700;
-      color: var(--gold);
-      text-shadow: 0 0 40px var(--gold-glow);
+      color: var(--accent);
+      text-shadow: none;
       letter-spacing: 0.04em;
       position: relative;
     }
@@ -66,7 +64,7 @@
       color: var(--text2);
       margin-top: 8px;
       font-size: 0.95rem;
-      font-weight: 300;
+      font-weight: 400;
     }
 
     /* ── LAYOUT ── */
@@ -96,18 +94,18 @@
       transition: all 0.18s;
       white-space: nowrap;
     }
-    .mode-btn:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+    .mode-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
     .mode-btn.active {
-      background: var(--gold-dim);
-      border-color: var(--gold);
-      color: var(--gold);
-      box-shadow: 0 0 12px var(--gold-glow);
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 8px var(--accent-glow);
     }
 
     .setup-card {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 28px;
     }
 
@@ -129,8 +127,8 @@
       transition: border-color 0.18s, box-shadow 0.18s;
     }
     input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
-      border-color: var(--gold);
-      box-shadow: 0 0 0 3px var(--gold-dim);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
     }
     textarea { resize: vertical; min-height: 100px; font-size: 0.85rem; }
     select option { background: var(--bg3); }
@@ -138,13 +136,21 @@
     input[type=number]::-webkit-inner-spin-button { display: none; }
 
     .hint { font-size: 0.78rem; color: var(--text3); margin-top: 5px; }
-    .hint a { color: var(--gold); text-decoration: none; }
+    .hint a { color: var(--accent); text-decoration: none; }
     .hint a:hover { text-decoration: underline; }
 
     /* Toggle */
-    .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 6px 0; }
+    .form-group label.toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      padding: 6px 0;
+      margin-bottom: 0;
+    }
     .toggle-row input[type=checkbox] { display: none; }
     .toggle-track {
+      display: inline-block;
       width: 40px; height: 22px;
       background: var(--bg3);
       border: 1px solid var(--border);
@@ -152,6 +158,7 @@
       position: relative;
       transition: background 0.18s, border-color 0.18s;
       flex-shrink: 0;
+      margin-right: 2px;
     }
     .toggle-track::after {
       content: '';
@@ -162,29 +169,33 @@
       border-radius: 50%;
       transition: transform 0.18s, background 0.18s;
     }
-    .toggle-row input:checked ~ .toggle-track { background: var(--gold-dim); border-color: var(--gold); }
-    .toggle-row input:checked ~ .toggle-track::after { transform: translateX(18px); background: var(--gold); }
-    .toggle-label { font-size: 0.9rem; color: var(--text2); }
+    .toggle-row input:checked ~ .toggle-track { background: var(--accent-dim); border-color: var(--accent); }
+    .toggle-row input:checked ~ .toggle-track::after { transform: translateX(18px); background: var(--accent); }
+    .toggle-label {
+      font-size: 0.9rem;
+      color: var(--text2);
+      display: inline-block;
+      padding-left: 2px;
+    }
 
     .divider { height: 1px; background: var(--border); margin: 20px 0; }
 
     .btn-primary {
       width: 100%;
       padding: 13px 24px;
-      background: linear-gradient(135deg, #b8860b 0%, var(--gold) 50%, #b8860b 100%);
-      background-size: 200% auto;
+      background: var(--accent);
       border: none;
       border-radius: var(--radius);
-      color: #0d1117;
-      font-family: 'Cinzel', serif;
+      color: #000;
+      font-family: inherit;
       font-size: 1rem;
       font-weight: 700;
       letter-spacing: 0.06em;
       cursor: pointer;
-      transition: background-position 0.3s, box-shadow 0.2s, transform 0.1s;
-      box-shadow: 0 4px 20px rgba(212,175,55,0.25);
+      transition: box-shadow 0.2s, transform 0.1s;
+      box-shadow: 0 0 20px var(--accent-glow);
     }
-    .btn-primary:hover { background-position: right center; box-shadow: 0 6px 28px rgba(212,175,55,0.4); }
+    .btn-primary:hover { box-shadow: 0 0 30px rgba(0,255,65,0.5); }
     .btn-primary:active { transform: scale(0.98); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
@@ -199,7 +210,7 @@
       cursor: pointer;
       transition: all 0.18s;
     }
-    .btn-secondary:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 
     .btn-icon { margin-right: 6px; }
 
@@ -225,7 +236,7 @@
       border: 1px solid transparent;
     }
     .block-item:hover { background: var(--bg2); color: var(--text); border-color: var(--border); }
-    .block-item.selected { background: var(--gold-dim); color: var(--gold); border-color: var(--gold); }
+    .block-item.selected { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
 
     /* ── PROGRESS ── */
     #progress-section {
@@ -242,7 +253,7 @@
     }
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #b8860b, var(--gold));
+      background: var(--accent);
       border-radius: 99px;
       transition: width 0.3s ease;
       width: 0%;
@@ -250,8 +261,8 @@
     #progress-text { color: var(--text2); font-size: 0.9rem; min-height: 1.4em; }
     .progress-spinner {
       width: 32px; height: 32px;
-      border: 3px solid var(--bg3);
-      border-top-color: var(--gold);
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 0 auto 12px;
@@ -268,9 +279,9 @@
       margin-bottom: 28px;
     }
     .results-title {
-      font-family: 'Cinzel', serif;
+      font-family: inherit;
       font-size: 1.5rem;
-      color: var(--gold);
+      color: var(--accent);
     }
     .results-actions { display: flex; gap: 8px; }
 
@@ -286,9 +297,9 @@
       margin-bottom: 16px;
     }
     .pack-title {
-      font-family: 'Cinzel', serif;
+      font-family: inherit;
       font-size: 1.05rem;
-      color: var(--text);
+      color: var(--accent);
       font-weight: 600;
     }
     .pack-meta { font-size: 0.8rem; color: var(--text3); }
@@ -323,13 +334,14 @@
       position: relative;
       border-radius: 4.75%/3.5%;
       overflow: hidden;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+      box-shadow: 0 0 8px rgba(0,255,65,0.15);
+      border: 1px solid var(--border);
       cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
       background: var(--bg3);
       aspect-ratio: 488/680;
     }
-    .card-item:hover { transform: translateY(-5px) scale(1.025); box-shadow: 0 12px 36px rgba(0,0,0,0.8); z-index: 2; }
+    .card-item:hover { transform: translateY(-5px) scale(1.025); box-shadow: 0 0 16px rgba(0,255,65,0.3); z-index: 2; }
     .card-item img {
       width: 100%;
       height: 100%;
@@ -351,7 +363,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #0d1117;
+      color: #000;
       box-shadow: 0 2px 6px rgba(0,0,0,0.5);
       pointer-events: none;
       opacity: 0.9;
@@ -365,7 +377,7 @@
       position: absolute;
       bottom: 7px; right: 7px;
       width: 26px; height: 26px;
-      background: rgba(13,17,23,0.85);
+      background: rgba(0,0,0,0.85);
       border: 1px solid rgba(255,255,255,0.2);
       border-radius: 50%;
       color: white;
@@ -377,7 +389,7 @@
       transition: background 0.15s;
       z-index: 3;
     }
-    .flip-btn:hover { background: rgba(212,175,55,0.8); color: #0d1117; }
+    .flip-btn:hover { background: rgba(0,255,65,0.8); color: #000; }
 
     /* Card skeleton */
     .card-skeleton {
@@ -394,9 +406,9 @@
     /* Tokens section */
     #tokens-section { margin-top: 48px; }
     .section-title {
-      font-family: 'Cinzel', serif;
+      font-family: inherit;
       font-size: 1.2rem;
-      color: var(--text);
+      color: var(--accent);
       padding-bottom: 12px;
       border-bottom: 1px solid var(--border);
       margin-bottom: 16px;
@@ -435,7 +447,7 @@
       transition: background 0.3s, box-shadow 0.3s;
     }
     .printer-dot.connected { background: #22c55e; box-shadow: 0 0 8px #22c55e88; }
-    .printer-dot.printing  { background: var(--gold); box-shadow: 0 0 8px var(--gold-glow); animation: pulse 0.8s ease-in-out infinite; }
+    .printer-dot.printing  { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); animation: pulse 0.8s ease-in-out infinite; }
     @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
     .printer-label { color: var(--text2); flex: 1; min-width: 120px; }
     .printer-status-text { color: var(--text3); font-size: 0.8rem; flex: 2; font-style: italic; }
@@ -451,7 +463,7 @@
       transition: all 0.18s;
       white-space: nowrap;
     }
-    .btn-printer-connect:hover { border-color: #8b5cf6; color: #a78bfa; background: rgba(139,92,246,0.1); }
+    .btn-printer-connect:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
     .btn-printer-connect.connected { border-color: #22c55e55; color: #86efac; }
     .pack-print-btn {
       padding: 5px 11px;
@@ -465,43 +477,12 @@
       transition: all 0.18s;
       white-space: nowrap;
     }
-    .pack-print-btn:hover:not(:disabled) { border-color: #8b5cf6; color: #a78bfa; background: rgba(139,92,246,0.1); }
+    .pack-print-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
     .pack-print-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-    .pack-print-btn.printing { border-color: var(--gold); color: var(--gold); animation: pulse 0.8s infinite; }
+    .pack-print-btn.printing { border-color: var(--accent); color: var(--accent); animation: pulse 0.8s infinite; }
 
-    /* ── RETRO MODE ── */
-    body.retro { background: #000; font-family: 'Courier New', monospace; }
-    body.retro .app-header { background: #000; border-color: #00ff41; }
-    body.retro .app-header::before { background: radial-gradient(ellipse 60% 80% at 50% -20%, rgba(0,255,65,0.12) 0%, transparent 70%); }
-    body.retro .app-title { font-family: monospace; color: #00ff41; text-shadow: 0 0 10px #00ff41; }
-    body.retro .app-subtitle { color: #00ff41; opacity: 0.6; font-family: monospace; }
-    body.retro .mode-btn { font-family: monospace; border-color: #003300; color: #00aa00; background: #001100; }
-    body.retro .mode-btn:hover, body.retro .mode-btn.active { border-color: #00ff41; color: #00ff41; background: rgba(0,255,65,0.1); box-shadow: 0 0 8px rgba(0,255,65,0.3); }
-    body.retro .setup-card { background: #001100; border-color: #003300; }
-    body.retro input, body.retro select, body.retro textarea { background: #000; border-color: #003300; color: #00ff41; font-family: monospace; }
-    body.retro input:focus, body.retro select:focus, body.retro textarea:focus { border-color: #00ff41; box-shadow: 0 0 0 3px rgba(0,255,65,0.15); }
-    body.retro label, body.retro .toggle-label, body.retro .form-group label { color: #00aa00; }
-    body.retro .hint { color: #005500; }
-    body.retro .hint a { color: #00ff41; }
-    body.retro .btn-primary { background: #00ff41; color: #000; font-family: monospace; box-shadow: 0 0 20px rgba(0,255,65,0.3); }
-    body.retro .btn-secondary { border-color: #003300; color: #00aa00; background: #001100; font-family: monospace; }
-    body.retro .btn-secondary:hover { border-color: #00ff41; color: #00ff41; }
-    body.retro .results-title { color: #00ff41; font-family: monospace; }
+    /* ── RETRO / ASCII MODE (card image filter only) ── */
     body.retro .card-item img { filter: grayscale(1) contrast(1.3); }
-    body.retro .card-item { box-shadow: 0 0 8px #00ff4155; border: 1px solid #003300; }
-    body.retro .pack-header { border-color: #003300; }
-    body.retro .pack-title { color: #00ff41; font-family: monospace; }
-    body.retro .pack-meta, body.retro .pack-badge { color: #00aa00; font-family: monospace; border-color: #003300; background: #001100; }
-    body.retro .pack-chevron { color: #00ff41; }
-    body.retro .printer-bar { background: #001100; border-color: #003300; }
-    body.retro .printer-label, body.retro .printer-status-text { color: #00aa00; font-family: monospace; }
-    body.retro .section-title { color: #00ff41; font-family: monospace; border-color: #003300; }
-    body.retro .progress-fill { background: #00ff41; }
-    body.retro .progress-spinner { border-color: #003300; border-top-color: #00ff41; }
-    body.retro #progress-text { color: #00aa00; font-family: monospace; }
-    body.retro .divider { background: #003300; }
-    body.retro .rarity-gem { font-family: monospace; }
-    body.retro ::selection { background: #00ff41; color: #000; }
 
     /* ── COLLAPSIBLE PACKS ── */
     .pack-header { cursor: pointer; user-select: none; }
@@ -514,7 +495,7 @@
 
     /* ── GANG PRINTING ── */
     .gang-print-row { display: flex; align-items: center; gap: 6px; padding: 0 4px; }
-    .gang-print-row input[type=checkbox] { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
+    .gang-print-row input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
     .gang-print-row label { font-size: 0.82rem; color: var(--text2); cursor: pointer; white-space: nowrap; }
 
     /* ── CANCEL PRINT ── */
@@ -557,7 +538,7 @@
 
 <div id="app">
   <header class="app-header">
-    <h1 class="app-title">✨ MTG Instant Draft Machine</h1>
+    <h1 class="app-title">MTG Instant Draft Machine</h1>
     <p class="app-subtitle">Generate authentic booster packs from any Magic: The Gathering set</p>
   </header>
 
@@ -565,11 +546,11 @@
     <!-- SETUP -->
     <section id="setup-screen">
       <div class="mode-selector" id="mode-selector">
-        <button class="mode-btn active" data-mode="set">🎴 Set Draft</button>
-        <button class="mode-btn" data-mode="chaos">🌀 Chaos</button>
-        <button class="mode-btn" data-mode="jumpstart">⚡ Jumpstart</button>
-        <button class="mode-btn" data-mode="block">📚 Block</button>
-        <button class="mode-btn" data-mode="cube">🧊 Cube</button>
+        <button class="mode-btn active" data-mode="set">Set Draft</button>
+        <button class="mode-btn" data-mode="chaos">Chaos</button>
+        <button class="mode-btn" data-mode="jumpstart">Jumpstart</button>
+        <button class="mode-btn" data-mode="block">Block</button>
+        <button class="mode-btn" data-mode="cube">Cube</button>
       </div>
 
       <div class="setup-card">
@@ -596,19 +577,19 @@
 
         <div class="divider"></div>
         <button class="btn-primary" id="generate-btn">
-          <span class="btn-icon">⚡</span>Generate Draft
+          <span class="btn-icon">&gt;</span>Generate Draft
         </button>
       </div>
 
       <div class="setup-card" style="margin-top: 20px;">
         <div class="form-group" style="margin-bottom: 12px;">
-          <label style="font-size: 0.92rem; color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0;">🖨️ Quick Print a Single Card</label>
-          <p class="hint" style="margin-top: 2px;">Type any card name to fetch and print it instantly — no draft needed.</p>
+          <label style="font-size: 0.92rem; color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0;">Quick Print a Single Card</label>
+          <p class="hint" style="margin-top: 2px;">Type any card name to fetch and print it instantly -- no draft needed.</p>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <input type="text" id="setup-quick-print-input" placeholder="e.g. Lightning Bolt" spellcheck="false" autocomplete="off" style="flex: 1; min-width: 160px;">
-          <button class="btn-secondary" id="setup-quick-print-btn" style="white-space: nowrap;">⚡ Print Card</button>
-          <button class="btn-secondary" id="setup-printer-connect-btn">🖨️ Connect Printer</button>
+          <button class="btn-secondary" id="setup-quick-print-btn" style="white-space: nowrap;">Print Card</button>
+          <button class="btn-secondary" id="setup-printer-connect-btn">Connect Printer</button>
         </div>
         <div style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
           <div class="printer-dot" id="setup-printer-dot"></div>
@@ -622,7 +603,7 @@
     <div id="progress-section" style="display:none">
       <div class="progress-spinner"></div>
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-      <p id="progress-text">Preparing…</p>
+      <p id="progress-text">Preparing...</p>
     </div>
 
     <!-- RESULTS -->
@@ -630,8 +611,8 @@
       <div class="results-header">
         <h2 class="results-title" id="results-title">Draft Complete</h2>
         <div class="results-actions">
-          <button class="btn-secondary" id="print-all-btn" style="display:none">🖨️ Print All Packs</button>
-          <button class="btn-cancel-print" id="cancel-print-btn" style="display:none">⏹️ Cancel Print</button>
+          <button class="btn-secondary" id="print-all-btn" style="display:none">Print All Packs</button>
+          <button class="btn-cancel-print" id="cancel-print-btn" style="display:none">Cancel Print</button>
           <label class="thermal-toggle-wrap toggle-row" title="Preview cards as they would appear on thermal printer">
             <input type="checkbox" id="thermal-preview-toggle">
             <span class="toggle-track"></span>
@@ -649,10 +630,10 @@
           <label for="gang-print-toggle">Gang Print (no cuts)</label>
         </div>
         <div class="quick-print-row">
-          <input type="text" id="quick-print-input" placeholder="Quick print card…" spellcheck="false">
-          <button class="btn-printer-connect" id="quick-print-btn" title="Fetch and print single card">⚡ Print</button>
+          <input type="text" id="quick-print-input" placeholder="Quick print card..." spellcheck="false">
+          <button class="btn-printer-connect" id="quick-print-btn" title="Fetch and print single card">Print</button>
         </div>
-        <button class="btn-printer-connect" id="connect-printer-btn">🖨️ Connect Printer</button>
+        <button class="btn-printer-connect" id="connect-printer-btn">Connect Printer</button>
       </div>
       <div id="error-banner"></div>
       <div id="packs-container"></div>
@@ -741,7 +722,7 @@ async function rateLimitedGet(url) {
       });
       if (res.status === 200 || res.status === 404) return res;
       if ([429, 500, 502, 503, 504].includes(res.status) && attempt < delays.length) {
-        setStatus(`⚠️ Rate limited — retrying in ${delays[attempt]/1000}s…`);
+        setStatus(`Rate limited -- retrying in ${delays[attempt]/1000}s...`);
         await sleep(delays[attempt]);
         continue;
       }
@@ -797,7 +778,7 @@ async function fetchCardByName(name) {
 }
 
 async function getCubeList(cubeId) {
-  setStatus(`📥 Fetching cube list from CubeCobra (${cubeId})…`);
+  setStatus(`Fetching cube list from CubeCobra (${cubeId})...`);
   const res = await rateLimitedGet(`https://cubecobra.com/cube/api/cubelist/${cubeId}`);
   if (res && res.status === 200) {
     const text = await res.text();
@@ -807,7 +788,7 @@ async function getCubeList(cubeId) {
 }
 
 async function getAllChaosSets() {
-  setStatus('🌀 Fetching valid sets for Chaos Draft…');
+  setStatus('Fetching valid sets for Chaos Draft...');
   const res = await rateLimitedGet('https://api.scryfall.com/sets');
   if (res && res.status === 200) {
     const data = await res.json();
@@ -828,10 +809,10 @@ async function buildPools(setCode) {
   const isPlayBooster = releaseDate >= '2024-02-09'; // MKM onwards
   const setName = info.name || setCode.toUpperCase();
 
-  setStatus(`📥 Fetching card pool for ${setName}…`);
+  setStatus(`Fetching card pool for ${setName}...`);
   const mainCards = await fetchCardsForQuery(`e:${setCode} is:booster -is:digital`);
   if (!mainCards.length) {
-    setStatus(`⚠️ No draftable cards found for ${setName}.`);
+    setStatus(`No draftable cards found for ${setName}.`);
     return null;
   }
 
@@ -874,13 +855,13 @@ async function buildPools(setCode) {
 
   if (BONUS_SHEETS[setCode]) {
     for (const bCode of BONUS_SHEETS[setCode]) {
-      setStatus(`🌟 Fetching bonus sheet: ${bCode.toUpperCase()}…`);
+      setStatus(`Fetching bonus sheet: ${bCode.toUpperCase()}...`);
       const bonus = await fetchCardsForQuery(`e:${bCode} lang:en -is:digital`);
       pools.Bonus.push(...bonus);
     }
   }
   if (setCode === 'mh2') {
-    setStatus('🌟 Fetching New-to-Modern reprints for MH2…');
+    setStatus('Fetching New-to-Modern reprints for MH2...');
     pools.Bonus = await fetchCardsForQuery('e:mh2 is:reprint lang:en -is:digital');
   }
 
@@ -1044,7 +1025,7 @@ async function buildJumpstartPack() {
   const [cCode, basicName, cName] = colorDefs[Math.floor(Math.random() * colorDefs.length)];
   const themeName = `Jumpstart: ${cName}`;
 
-  setStatus(`📥 Fetching ${cName} cards from all Jumpstart sets…`);
+  setStatus(`Fetching ${cName} cards from all Jumpstart sets...`);
   const cards = await fetchCardsForQuery(`st:jumpstart id<=${cCode} -t:basic -is:digital`);
 
   const pools = { C: [], U: [], R: [], M: [] };
@@ -1066,7 +1047,7 @@ async function buildJumpstartPack() {
   for (let i = 0; i < 4; i++) pack.push(pick('U'));
   for (let i = 0; i < 7; i++) pack.push(pick('C'));
 
-  setStatus(`📥 Fetching ${basicName} basics from Jumpstart…`);
+  setStatus(`Fetching ${basicName} basics from Jumpstart...`);
   let basics = await fetchCardsForQuery(`t:basic name:${basicName} st:jumpstart -is:digital`);
   if (!basics.length) basics = await fetchCardsForQuery(`t:basic name:${basicName}`);
   if (basics.length) {
@@ -1110,7 +1091,7 @@ function parseScryfallCard(card) {
         });
       });
     } else {
-      // Adventure / Split / Flip — single image, combined text
+      // Adventure / Split / Flip -- single image, combined text
       const main = card.card_faces[0];
       let combinedText = main.oracle_text || main.flavor_text || '';
       for (const face of card.card_faces.slice(1)) {
@@ -1118,7 +1099,7 @@ function parseScryfallCard(card) {
         const sMana = formatMana(face.mana_cost || '');
         const sType = face.type_line || '';
         const sText = face.oracle_text || face.flavor_text || '';
-        combinedText += `\n\n— ${sName}  ${sMana} —`;
+        combinedText += `\n\n-- ${sName}  ${sMana} --`;
         if (sType) combinedText += `\n${sType}`;
         combinedText += `\n${sText}`;
       }
@@ -1221,7 +1202,7 @@ function buildCardElement(face, isBack = false) {
     frontImg.onerror = () => { frontImg.style.display = 'none'; };
     item.appendChild(frontImg);
 
-    // We need the back face info — it comes in the next face object
+    // We need the back face info -- it comes in the next face object
     // The caller handles both faces for DFC, we store the back URI in dataset
     item.dataset.frontUri = face.imageUri || '';
   } else {
@@ -1308,7 +1289,7 @@ function renderPackBlock(header, cards) {
 
   const printBtn = document.createElement('button');
   printBtn.className = 'pack-print-btn';
-  printBtn.textContent = '🖨️ Print Pack';
+  printBtn.textContent = 'Print Pack';
   printBtn.disabled = !printerState.connected;
   printBtn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1380,7 +1361,7 @@ async function generateDraft() {
 
   showScreen('progress');
   setProgress(0);
-  setStatus('Preparing draft…');
+  setStatus('Preparing draft...');
 
   const packsContainer = document.getElementById('packs-container');
   const tokensContainer = document.getElementById('tokens-container');
@@ -1443,7 +1424,7 @@ async function generateDraft() {
       }
       cubeList = shuffleArray([...rawList]);
       draftSequence = Array(state.numPacks).fill('cube');
-      titleStr = `Cube Draft — ${state.cubeId || 'Pasted List'}`;
+      titleStr = `Cube Draft -- ${state.cubeId || 'Pasted List'}`;
 
     } else if (state.mode === 'jumpstart') {
       draftSequence = Array(state.numPacks).fill('jumpstart');
@@ -1467,7 +1448,7 @@ async function generateDraft() {
       let rawCode = document.getElementById('set-code-input')?.value.trim().toLowerCase() || '';
       if (!rawCode) { showScreen('setup'); genBtn.disabled = false; return; }
 
-      // ASCII easter egg (only activate, never deactivate — Konami code may have set it)
+      // ASCII easter egg (only activate, never deactivate -- Konami code may have set it)
       if (rawCode.startsWith('ascii')) {
         state.retroMode = true;
         document.body.classList.add('retro');
@@ -1492,20 +1473,20 @@ async function generateDraft() {
       let header = {};
 
       if (currentCode === 'jumpstart') {
-        setStatus(`🎲 Rolling Jumpstart packet ${packIdx + 1} of ${total}…`);
+        setStatus(`Rolling Jumpstart packet ${packIdx + 1} of ${total}...`);
         const { pack, themeName } = await buildJumpstartPack();
         packCards = pack;
         header = { title: `Packet ${packIdx + 1}`, setName: themeName, type: 'Jumpstart' };
 
       } else if (currentCode === 'cube') {
         header = { title: `Pack ${packIdx + 1}`, setName: `Cube: ${state.cubeId}`, type: 'Cube Pack' };
-        setStatus(`🎲 Drawing cube pack ${packIdx + 1} of ${total}…`);
+        setStatus(`Drawing cube pack ${packIdx + 1} of ${total}...`);
 
         while (packCards.length < 15) {
           if (cubeIndex >= cubeList.length) {
             cubeList = shuffleArray([...cubeList]);
             cubeIndex = 0;
-            setStatus('♻️ Cube exhausted — reshuffling…');
+            setStatus('Cube exhausted -- reshuffling...');
           }
           const cardName = cubeList[cubeIndex++];
           const data = await fetchCardByName(cardName);
@@ -1515,12 +1496,12 @@ async function generateDraft() {
       } else {
         // Standard set / chaos / block
         if (!poolCache[currentCode]) {
-          setStatus(`📥 Building pool for ${currentCode.toUpperCase()}… (${packIdx + 1}/${total})`);
+          setStatus(`Building pool for ${currentCode.toUpperCase()}... (${packIdx + 1}/${total})`);
           const result = await buildPools(currentCode);
           if (!result) {
             // Chaos: try another set
             if (state.mode === 'chaos') {
-              setStatus(`⚠️ Skipping ${currentCode} — pool build failed.`);
+              setStatus(`Skipping ${currentCode} -- pool build failed.`);
               const remaining = validChaosSets.filter(s => !draftSequence.includes(s));
               if (remaining.length) draftSequence[packIdx] = remaining[Math.floor(Math.random() * remaining.length)];
               packIdx--;
@@ -1539,7 +1520,7 @@ async function generateDraft() {
         if (state.mode === 'block') {
           const drafterNum = Math.floor(packIdx / HISTORICAL_BLOCKS[state.selectedBlock].length) + 1;
           const packNum = (packIdx % HISTORICAL_BLOCKS[state.selectedBlock].length) + 1;
-          packTitle = `Drafter ${drafterNum} — Pack ${packNum}`;
+          packTitle = `Drafter ${drafterNum} -- Pack ${packNum}`;
           packMeta = setName;
         } else {
           packTitle = `Pack ${packIdx + 1} of ${total}`;
@@ -1548,7 +1529,7 @@ async function generateDraft() {
 
         header = { title: packTitle, setName: packMeta, type: boosterType };
 
-        setStatus(`🎲 Rolling ${packMeta} pack ${packIdx + 1} of ${total}…`);
+        setStatus(`Rolling ${packMeta} pack ${packIdx + 1} of ${total}...`);
         packCards = rollPack(pools, isPlayBooster, currentCode, releaseDate);
       }
 
@@ -1617,13 +1598,13 @@ function renderModeInputs(mode) {
   } else if (mode === 'chaos') {
     container.innerHTML = `
       <div class="form-group">
-        <p class="hint" style="font-size:0.9rem;color:var(--text2)">🌀 Each pack comes from a different random draftable set. No duplicates.</p>
+        <p class="hint" style="font-size:0.9rem;color:var(--text2)">Each pack comes from a different random draftable set. No duplicates.</p>
       </div>`;
 
   } else if (mode === 'jumpstart') {
     container.innerHTML = `
       <div class="form-group">
-        <p class="hint" style="font-size:0.9rem;color:var(--text2)">⚡ Each packet: 1 Rare/Mythic, 4 Uncommons, 7 Commons, 8 Basic Lands — all single-color aligned.</p>
+        <p class="hint" style="font-size:0.9rem;color:var(--text2)">Each packet: 1 Rare/Mythic, 4 Uncommons, 7 Commons, 8 Basic Lands -- all single-color aligned.</p>
       </div>`;
 
   } else if (mode === 'block') {
@@ -1658,8 +1639,8 @@ function renderModeInputs(mode) {
         <p class="hint">Paste the cube ID or a CubeCobra URL. Each pack pulls 15 random cards.</p>
       </div>
       <div class="form-group">
-        <label>— or paste card list directly —</label>
-        <textarea id="cube-paste" placeholder="One card name per line (optional — overrides Cube ID)"></textarea>
+        <label>-- or paste card list directly --</label>
+        <textarea id="cube-paste" placeholder="One card name per line (optional -- overrides Cube ID)"></textarea>
       </div>`;
 
     // Sync cubeId from input
@@ -1670,7 +1651,7 @@ function renderModeInputs(mode) {
 
 function showError(msg) {
   const el = document.getElementById('error-banner');
-  el.innerHTML = `<div class="banner error">⚠️ ${escHtml(msg)}</div>`;
+  el.innerHTML = `<div class="banner error">${escHtml(msg)}</div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1700,12 +1681,12 @@ async function printAllPacks() {
   const printAllBtn = document.getElementById('print-all-btn');
   cancelBtn.style.display = '';
   printAllBtn.disabled = true;
-  printAllBtn.textContent = '⏳ Printing All…';
+  printAllBtn.textContent = 'Printing All...';
 
   try {
     for (let p = 0; p < state.allPackFaces.length; p++) {
       if (state.isPrintingCanceled) break;
-      setPrintingIndicator(`Printing pack ${p + 1} of ${state.allPackFaces.length}…`);
+      setPrintingIndicator(`Printing pack ${p + 1} of ${state.allPackFaces.length}...`);
       await printPack(state.allPackFaces[p], state.allPackHeaders[p], null);
     }
 
@@ -1722,13 +1703,13 @@ async function printAllPacks() {
     state.isPrinting = false;
     cancelBtn.style.display = 'none';
     printAllBtn.disabled = false;
-    printAllBtn.textContent = '🖨️ Print All Packs';
+    printAllBtn.textContent = 'Print All Packs';
   }
 }
 
 function cancelPrint() {
   state.isPrintingCanceled = true;
-  setPrintingIndicator('⏹️ Print canceled by user.');
+  setPrintingIndicator('Print canceled by user.');
   document.getElementById('cancel-print-btn').style.display = 'none';
   setTimeout(() => {
     if (!state.isPrinting) setPrintingIndicator('');
@@ -1743,7 +1724,7 @@ async function toggleThermalPreview(enabled) {
   const allItems = document.querySelectorAll('#packs-container .card-item, #tokens-container .card-item');
   if (!allItems.length) return;
 
-  setPrintingIndicator(enabled ? 'Rendering thermal previews…' : 'Restoring card images…');
+  setPrintingIndicator(enabled ? 'Rendering thermal previews...' : 'Restoring card images...');
   let processed = 0;
 
   for (const item of allItems) {
@@ -1776,7 +1757,7 @@ async function toggleThermalPreview(enabled) {
 
     processed++;
     if (processed % 20 === 0) {
-      setPrintingIndicator(`${enabled ? 'Rendering' : 'Restoring'} ${processed}/${allItems.length}…`);
+      setPrintingIndicator(`${enabled ? 'Rendering' : 'Restoring'} ${processed}/${allItems.length}...`);
       await sleep(0); // yield to UI thread
     }
   }
@@ -1801,7 +1782,7 @@ async function quickPrintFrom(inputId) {
     if (sStatus) sStatus.textContent = msg;
   };
 
-  statusMsg(`Fetching "${name}" from Scryfall…`);
+  statusMsg(`Fetching "${name}" from Scryfall...`);
   const card = await fetchCardByName(name);
   if (!card) {
     statusMsg(`Card not found: "${name}"`);
@@ -2008,7 +1989,7 @@ function init() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PRINTER SUBSYSTEM — WebUSB + ESC/POS
+// PRINTER SUBSYSTEM -- WebUSB + ESC/POS
 // Mirrors the Python script's print pipeline using Canvas 2D for
 // card rendering, Floyd-Steinberg dithering, and WebUSB for transport.
 // ═══════════════════════════════════════════════════════════════
@@ -2036,7 +2017,7 @@ function loadImageForCanvas(uri) {
   });
 }
 
-/** Word-wrap text for canvas using measureText — mirrors Python wrap_text */
+/** Word-wrap text for canvas using measureText -- mirrors Python wrap_text */
 function wrapTextForPrint(ctx, text, maxWidth) {
   const lines = [];
   for (const paragraph of text.split('\n')) {
@@ -2079,7 +2060,7 @@ function applyContrast(imageData, factor) {
 }
 
 /**
- * Floyd-Steinberg dithering — mirrors Pillow's native C-backend dither used
+ * Floyd-Steinberg dithering -- mirrors Pillow's native C-backend dither used
  * by Python's fast_dither(). Returns Uint8Array where 0=black, 1=white.
  */
 function floydSteinbergDither(imageData) {
@@ -2119,7 +2100,7 @@ function floydSteinbergDither(imageData) {
  */
 async function renderCardToCanvas(face) {
   const W = PRINT_CARD_W, H = PRINT_CARD_H;
-  const M = 8; // safe margin — prevents left/right edge clipping on thermal printers
+  const M = 8; // safe margin -- prevents left/right edge clipping on thermal printers
   const UW = W - M * 2; // usable width inside margins
 
   const canvas = document.createElement('canvas');
@@ -2426,7 +2407,7 @@ function canvasToEscPosRaster(canvas) {
     }
   }
 
-  // GS v 0 — raster bit image command
+  // GS v 0 -- raster bit image command
   const cmd = new Uint8Array(8 + rasterData.length);
   cmd[0] = 0x1D; cmd[1] = 0x76; cmd[2] = 0x30; cmd[3] = 0x00; // GS v 0 normal
   cmd[4] = bytesPerRow & 0xFF;         // xL
@@ -2453,11 +2434,11 @@ async function printerSend(data) {
 
 async function connectPrinter() {
   if (!navigator.usb) {
-    setPrinterStatus('WebUSB not supported — use Chrome or Edge.', false);
+    setPrinterStatus('WebUSB not supported -- use Chrome or Edge.', false);
     return;
   }
   try {
-    // No vendor filter — lets the user pick any ESC/POS printer
+    // No vendor filter -- lets the user pick any ESC/POS printer
     const device = await navigator.usb.requestDevice({ filters: [] });
     await device.open();
     if (device.configuration === null) await device.selectConfiguration(1);
@@ -2485,8 +2466,8 @@ async function connectPrinter() {
     printerState.endpointNumber = epNum;
     printerState.connected = true;
 
-    // Initialize printer — speed + density commands from original Python
-    await printerSend(new Uint8Array([0x1B, 0x40]));         // ESC @ — reset
+    // Initialize printer -- speed + density commands from original Python
+    await printerSend(new Uint8Array([0x1B, 0x40]));         // ESC @ -- reset
     await printerSend(new Uint8Array([0x1f,0x1b,0x1f,0x01])); // Speed 2
     await printerSend(new Uint8Array([0x1f,0x1b,0x1f,0x0a])); // Density 10
 
@@ -2526,12 +2507,12 @@ function setPrinterStatus(msg, connected) {
   if (connected) {
     dot.className = 'printer-dot connected';
     label.textContent = 'Printer ready';
-    btn.textContent = '⏏ Disconnect';
+    btn.textContent = 'Disconnect';
     btn.classList.add('connected');
   } else {
     dot.className = 'printer-dot';
     label.textContent = 'No printer connected';
-    btn.textContent = '🖨️ Connect Printer';
+    btn.textContent = 'Connect Printer';
     btn.classList.remove('connected');
   }
   if (status) status.textContent = msg;
@@ -2545,7 +2526,7 @@ function setPrinterStatus(msg, connected) {
   if (sLabel) sLabel.textContent = connected ? 'Printer ready' : 'No printer connected';
   if (sStatus) sStatus.textContent = msg;
   if (sBtn) {
-    sBtn.textContent = connected ? '⏏ Disconnect' : '🖨️ Connect Printer';
+    sBtn.textContent = connected ? 'Disconnect' : 'Connect Printer';
     if (connected) sBtn.classList.add('connected'); else sBtn.classList.remove('connected');
   }
 }
@@ -2578,14 +2559,14 @@ function updatePrinterUI() {
 async function printCardFace(face, isLastFace, isLastCardInPack = true) {
   if (state.isPrintingCanceled) return;
 
-  setPrintingIndicator(`Rendering ${face.name}…`);
+  setPrintingIndicator(`Rendering ${face.name}...`);
   const cardCanvas  = await renderCardToCanvas(face);
   const printCanvas = processForPrint(cardCanvas);
   const escposData  = canvasToEscPosRaster(printCanvas);
 
   if (state.isPrintingCanceled) return;
 
-  setPrintingIndicator(`Sending ${face.name} to printer…`);
+  setPrintingIndicator(`Sending ${face.name} to printer...`);
   await printerSend(escposData);
 
   if (isLastFace) {
@@ -2599,8 +2580,8 @@ async function printCardFace(face, isLastFace, isLastCardInPack = true) {
       await sleep(1500);
     }
   } else {
-    // Feed 20 blank lines between DFC faces (ESC d n = print and feed n lines)
-    await printerSend(new Uint8Array([0x1B, 0x64, 0x14]));
+    // Small feed between DFC faces (ESC d n = print and feed n lines)
+    await printerSend(new Uint8Array([0x1B, 0x64, 0x01]));
     await sleep(1000);
   }
 }
@@ -2619,7 +2600,7 @@ async function printPack(faces, header, triggerBtn) {
   if (triggerBtn) {
     triggerBtn.disabled = true;
     triggerBtn.classList.add('printing');
-    triggerBtn.textContent = '⏳ Printing…';
+    triggerBtn.textContent = 'Printing...';
   }
 
   try {
@@ -2674,7 +2655,7 @@ async function printPack(faces, header, triggerBtn) {
     if (triggerBtn) {
       triggerBtn.disabled = false;
       triggerBtn.classList.remove('printing');
-      triggerBtn.textContent = '🖨️ Print Pack';
+      triggerBtn.textContent = 'Print Pack';
     }
   }
 }
