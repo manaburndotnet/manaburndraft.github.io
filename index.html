@@ -829,7 +829,7 @@
           <textarea id="print-list-input" placeholder="Paste your card list here..." style="min-height: 130px; font-size: 0.82rem;"></textarea>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <button class="btn-secondary" id="print-list-btn" style="white-space: nowrap;">Print List</button>
+          <button class="btn-secondary" id="print-list-btn" style="white-space: nowrap;">Load List</button>
           <span class="printer-status-text" id="print-list-status" style="font-size: 0.78rem;"></span>
         </div>
       </div>
@@ -1650,13 +1650,11 @@ async function generateDraft() {
       titleStr = `Set Draft`;
     }
 
-    showScreen('results');
-    document.getElementById('results-title').textContent = titleStr;
-
     const total = draftSequence.length;
     let done = 0;
+    const pendingPacks = [];
 
-    // ── Process each pack ──
+    // ── Fetch all pools and roll all packs on the progress screen ──
     for (let packIdx = 0; packIdx < draftSequence.length; packIdx++) {
       const currentCode = draftSequence[packIdx];
       let packCards = [];
@@ -1683,7 +1681,6 @@ async function generateDraft() {
           setStatus(`Building pool for ${currentCode.toUpperCase()}... (${packIdx + 1}/${total})`);
           const result = await buildPools(currentCode);
           if (!result) {
-            // Chaos: try another set
             if (state.mode === 'chaos') {
               setStatus(`Skipping ${currentCode} -- pool build failed.`);
               const remaining = validChaosSets.filter(s => !draftSequence.includes(s));
@@ -1717,24 +1714,35 @@ async function generateDraft() {
         packCards = rollPack(pools, isPlayBooster, currentCode, releaseDate);
       }
 
-      // Parse all cards to faces
+      // Parse faces and stash for rendering after progress completes
       const allFaces = [];
       for (const card of packCards) {
         allFaces.push(...parseScryfallCard(card));
       }
-
-      // Render pack into results section
-      const packBlock = renderPackBlock(header, allFaces);
-      packsContainer.appendChild(packBlock);
+      pendingPacks.push({ header, allFaces, packCards });
 
       // Token collection
       if (state.includeTokens) {
+        setStatus(`Collecting tokens for pack ${packIdx + 1}...`);
         const newToks = await collectTokens(packCards, tokenCache);
         Object.assign(globalTokens, newToks);
       }
 
       done++;
       setProgress(Math.round((done / total) * 100));
+    }
+
+    // ── All data ready — transition to results ──
+    setProgress(100);
+    setStatus('Rendering packs...');
+    await sleep(0);
+
+    showScreen('results');
+    document.getElementById('results-title').textContent = titleStr;
+
+    for (const { header, allFaces } of pendingPacks) {
+      const packBlock = renderPackBlock(header, allFaces);
+      packsContainer.appendChild(packBlock);
     }
 
     // Render tokens
@@ -1748,7 +1756,6 @@ async function generateDraft() {
       }
     }
 
-    setProgress(100);
     updatePrinterUI();
 
   } catch (err) {
@@ -2027,16 +2034,11 @@ async function fetchCardBySetCollector(setCode, collectorNumber) {
   return null;
 }
 
-async function printCardList() {
+async function loadCardList() {
   const textarea = document.getElementById('print-list-input');
   const statusEl = document.getElementById('print-list-status');
   const rawText = (textarea?.value || '').trim();
   if (!rawText) return;
-
-  if (!printerState.connected) {
-    alert('Connect a printer first.');
-    return;
-  }
 
   const entries = parseCardList(rawText);
   if (!entries.length) {
@@ -2046,71 +2048,74 @@ async function printCardList() {
   }
 
   const btn = document.getElementById('print-list-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Printing...'; }
+  if (btn) btn.disabled = true;
+
+  showScreen('progress');
+  setProgress(0);
+  setStatus('Fetching card list...');
+
+  const packsContainer = document.getElementById('packs-container');
+  const tokensContainer = document.getElementById('tokens-container');
+  packsContainer.innerHTML = '';
+  tokensContainer.innerHTML = '';
+  document.getElementById('tokens-section').style.display = 'none';
+  document.getElementById('error-banner').innerHTML = '';
+  state.allPackFaces = [];
+  state.allPackHeaders = [];
   state.isPrintingCanceled = false;
+  document.getElementById('cancel-print-btn').style.display = 'none';
+  document.getElementById('print-all-btn').style.display = 'none';
 
-  const setStatus = (msg) => {
-    if (statusEl) statusEl.textContent = msg;
-    setPrintingIndicator(msg);
-    const sStatus = document.getElementById('setup-printer-status');
-    if (sStatus) sStatus.textContent = msg;
-  };
-
-  let totalCards = entries.reduce((s, e) => s + e.qty, 0);
-  let printed = 0;
+  const totalCards = entries.reduce((s, e) => s + e.qty, 0);
+  let fetched = 0;
+  const allFaces = [];
+  const skipped = [];
 
   try {
     for (const entry of entries) {
-      if (state.isPrintingCanceled) break;
-
       setStatus(`Fetching ${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}...`);
       const card = await fetchCardBySetCollector(entry.set, entry.collectorNumber);
+
       if (!card) {
-        setStatus(`Not found: ${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber} -- skipping`);
-        await sleep(2000);
-        printed += entry.qty;
+        skipped.push(`${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}`);
+        fetched += entry.qty;
+        setProgress(Math.round((fetched / totalCards) * 100));
         continue;
       }
 
       const faces = parseScryfallCard(card);
-      const groups = [];
-      let i = 0;
-      while (i < faces.length) {
-        const face = faces[i];
-        if (face.isDFC && face.dfcSide === 'front' && faces[i+1]?.dfcSide === 'back') {
-          groups.push([face, faces[i+1]]);
-          i += 2;
-        } else {
-          groups.push([face]);
-          i++;
-        }
-      }
-
       for (let copy = 0; copy < entry.qty; copy++) {
-        if (state.isPrintingCanceled) break;
-        setStatus(`Printing ${entry.name} (${copy + 1}/${entry.qty}) — ${printed + 1}/${totalCards} total`);
-        for (const group of groups) {
-          for (let fi = 0; fi < group.length; fi++) {
-            if (state.isPrintingCanceled) break;
-            await printCardFace(group[fi], fi === group.length - 1, true);
-          }
-        }
-        printed++;
+        allFaces.push(...faces);
+        fetched++;
+        setProgress(Math.round((fetched / totalCards) * 100));
       }
     }
 
-    if (!state.isPrintingCanceled) {
-      setStatus(`List complete — ${printed} card(s) printed!`);
-      setTimeout(() => setStatus(''), 5000);
+    showScreen('results');
+    document.getElementById('results-title').textContent = 'Card List';
+
+    if (skipped.length) {
+      const el = document.getElementById('error-banner');
+      el.innerHTML = `<div class="banner warn">Skipped ${skipped.length} card(s) not found: ${escHtml(skipped.join(', '))}</div>`;
     }
+
+    if (allFaces.length) {
+      const header = { title: 'Card List', setName: `${allFaces.length} card(s)`, type: 'List' };
+      const packBlock = renderPackBlock(header, allFaces);
+      packBlock.classList.add('expanded');
+      const chevron = packBlock.querySelector('.pack-chevron');
+      if (chevron) chevron.textContent = '▼';
+      packsContainer.appendChild(packBlock);
+    }
+
+    setProgress(100);
+    updatePrinterUI();
   } catch (err) {
-    if (!state.isPrintingCanceled) {
-      setStatus(`Print error: ${err.message}`);
-      console.error(err);
-    }
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Print List'; }
+    showError(`List loading error: ${err.message}`);
+    console.error(err);
   }
+
+  if (btn) btn.disabled = false;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2268,8 +2273,8 @@ function init() {
     else await connectPrinter();
   });
 
-  // Print List (setup screen)
-  document.getElementById('print-list-btn').addEventListener('click', () => printCardList());
+  // Print List (setup screen) — loads into results view
+  document.getElementById('print-list-btn').addEventListener('click', () => loadCardList());
 
   // Persist settings on form changes
   document.getElementById('num-packs').addEventListener('change', () => saveSettings());
