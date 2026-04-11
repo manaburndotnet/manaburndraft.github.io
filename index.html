@@ -548,7 +548,6 @@
       <div class="mode-selector" id="mode-selector">
         <button class="mode-btn active" data-mode="set">Set Draft</button>
         <button class="mode-btn" data-mode="chaos">Chaos</button>
-        <button class="mode-btn" data-mode="jumpstart">Jumpstart</button>
         <button class="mode-btn" data-mode="block">Block</button>
         <button class="mode-btn" data-mode="cube">Cube</button>
       </div>
@@ -1012,52 +1011,6 @@ function rollPack(pools, isPlayBooster, setCode, releaseDate) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// JUMPSTART PACK BUILDER
-// ═══════════════════════════════════════════════════════════════
-async function buildJumpstartPack() {
-  const colorDefs = [
-    ['W', 'Plains', 'White'],
-    ['U', 'Island', 'Blue'],
-    ['B', 'Swamp', 'Black'],
-    ['R', 'Mountain', 'Red'],
-    ['G', 'Forest', 'Green'],
-  ];
-  const [cCode, basicName, cName] = colorDefs[Math.floor(Math.random() * colorDefs.length)];
-  const themeName = `Jumpstart: ${cName}`;
-
-  setStatus(`Fetching ${cName} cards from all Jumpstart sets...`);
-  const cards = await fetchCardsForQuery(`st:jumpstart id<=${cCode} -t:basic -is:digital`);
-
-  const pools = { C: [], U: [], R: [], M: [] };
-  for (const c of cards) {
-    const r = c.rarity || 'common';
-    (pools[r[0].toUpperCase()] || pools.C).push(c);
-  }
-
-  const rand = () => Math.random();
-  function pick(key) {
-    const pool = pools[key] || pools.C;
-    return pool.length ? pool[Math.floor(rand() * pool.length)] : null;
-  }
-
-  const pack = [];
-  // Jumpstart formula: 1 R/M, 4 U, 7 C, 8 basics
-  const rCard = (rand() < 0.2 && pools.M.length) ? pick('M') : pick('R');
-  if (rCard) pack.push(rCard);
-  for (let i = 0; i < 4; i++) pack.push(pick('U'));
-  for (let i = 0; i < 7; i++) pack.push(pick('C'));
-
-  setStatus(`Fetching ${basicName} basics from Jumpstart...`);
-  let basics = await fetchCardsForQuery(`t:basic name:${basicName} st:jumpstart -is:digital`);
-  if (!basics.length) basics = await fetchCardsForQuery(`t:basic name:${basicName}`);
-  if (basics.length) {
-    for (let i = 0; i < 8; i++) pack.push(basics[Math.floor(rand() * basics.length)]);
-  }
-
-  return { pack: pack.filter(Boolean), themeName };
-}
-
-// ═══════════════════════════════════════════════════════════════
 // CARD PARSING  (mirrors Python parse_scryfall_card)
 // ═══════════════════════════════════════════════════════════════
 function formatMana(text) {
@@ -1426,10 +1379,6 @@ async function generateDraft() {
       draftSequence = Array(state.numPacks).fill('cube');
       titleStr = `Cube Draft -- ${state.cubeId || 'Pasted List'}`;
 
-    } else if (state.mode === 'jumpstart') {
-      draftSequence = Array(state.numPacks).fill('jumpstart');
-      titleStr = 'Jumpstart Draft';
-
     } else if (state.mode === 'chaos') {
       validChaosSets = await getAllChaosSets();
       if (!validChaosSets.length) {
@@ -1472,13 +1421,7 @@ async function generateDraft() {
       let packCards = [];
       let header = {};
 
-      if (currentCode === 'jumpstart') {
-        setStatus(`Rolling Jumpstart packet ${packIdx + 1} of ${total}...`);
-        const { pack, themeName } = await buildJumpstartPack();
-        packCards = pack;
-        header = { title: `Packet ${packIdx + 1}`, setName: themeName, type: 'Jumpstart' };
-
-      } else if (currentCode === 'cube') {
+      if (currentCode === 'cube') {
         header = { title: `Pack ${packIdx + 1}`, setName: `Cube: ${state.cubeId}`, type: 'Cube Pack' };
         setStatus(`Drawing cube pack ${packIdx + 1} of ${total}...`);
 
@@ -1599,12 +1542,6 @@ function renderModeInputs(mode) {
     container.innerHTML = `
       <div class="form-group">
         <p class="hint" style="font-size:0.9rem;color:var(--text2)">Each pack comes from a different random draftable set. No duplicates.</p>
-      </div>`;
-
-  } else if (mode === 'jumpstart') {
-    container.innerHTML = `
-      <div class="form-group">
-        <p class="hint" style="font-size:0.9rem;color:var(--text2)">Each packet: 1 Rare/Mythic, 4 Uncommons, 7 Commons, 8 Basic Lands -- all single-color aligned.</p>
       </div>`;
 
   } else if (mode === 'block') {
