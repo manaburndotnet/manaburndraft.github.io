@@ -1491,38 +1491,26 @@ const state = {
 // ═══════════════════════════════════════════════════════════════
 // FLAVOR TEXT CYCLE  (burn-out effect adapted from manaburn.net)
 // ═══════════════════════════════════════════════════════════════
-const FLAVOR_TEXTS = [
-  { text: '"The dark won\'t hurt you. What\'s in the dark, however..."', source: 'Duskmourn' },
-  { text: '"Of course you should fight fire with fire. You should fight everything with fire."', source: 'Jaya Ballard, Task Mage' },
-  { text: '"The meek shall inherit the earth — six feet of it."', source: 'Enslave' },
-  { text: '"I have seen the end of all things, and I would do it all again."', source: 'Elesh Norn' },
-  { text: '"I want a nice, clean fight!"', source: 'Arena' },
-  { text: '"Let my epitaph be this: his lies, my fire."', source: 'Jaya Ballard' },
-  { text: '"Enter and join the dead in their decadent paradise."', source: 'Orzhov Basilica' },
-  { text: '"Don\'t mourn for me. This is my gift to you."', source: 'Selfless Spirit' },
-  { text: '"Ach! Hans, run! It\'s the Lhurgoyf!"', source: 'Saffi Eriksdotter, last words' },
-  { text: '"Blood is the paint, the world is the canvas."', source: 'Hemorrhage' },
-  { text: '"The earth shattered, and from it bloomed a terrible beauty."', source: 'Marit Lage' },
-  { text: '"The flesh is but a vessel. The mind is what I consume."', source: 'Ashiok' },
-  { text: '"You may say I\'m a dreamer, but I\'m not."', source: 'Ertai, the Corrupted' },
-  { text: '"Pain is just information."', source: 'Karn' },
-  { text: '"I have seen worlds die. It never stops being beautiful."', source: 'Nicol Bolas' },
-  { text: '"Fear not the lightning. Fear the one who calls it."', source: 'Ral Zarek' },
-  { text: '"The only constant in the multiverse is upheaval."', source: 'Teferi' },
-  { text: '"The grave is nature\'s way of telling you your time is up."', source: 'Deadbridge Chant' },
-  { text: '"I\'ve come too far to die here."', source: 'Gideon Jura' },
+let FLAVOR_TEXTS = [
   { text: '"Greatness, at any cost."', source: 'Dark Confidant' },
-  { text: '"Anything that can be conceived can be achieved."', source: 'Urza' },
-  { text: '"It doesn\'t think. It doesn\'t feel. It doesn\'t laugh or cry. All it does, from dusk till dawn, is make the soldiers die."', source: 'Phyrexian Hulk' },
-  { text: '"I am the voice of the past that will always be."', source: 'Spirit of the Night' },
-  { text: '"The quickest way to a man\'s heart is through his chest."', source: 'Hidetsugu' },
-  { text: '"Even the small can be mighty."', source: 'Mother of Runes' },
-  { text: '"In the swamp, there is no beauty. There is power."', source: 'Liliana Vess' },
-  { text: '"There is always a greater power."', source: 'Ugin' },
-  { text: '"Rage is the only language the multiverse truly understands."', source: 'Sarkhan Vol' },
-  { text: '"To the living we owe respect, but to the dead we owe only the truth."', source: 'Cemetery Reaper' },
-  { text: '"Some have said there is no subtlety to destruction. You know what? They\'re dead."', source: 'Jaya Ballard, Task Mage' },
+  { text: 'My Abattoir Ghoul deck is unstoppable. Wait, 1996 World Champion?', source: '—Johnny, to Spike' },
+  { text: 'Who wants to see a picture of a big hairy ass?', source: 'Assquatch' },
+  { text: 'Come, friends. Let us see if this world remembers us.', source: 'Abuelo, Ancestral Echo' },
 ];
+
+async function loadFlavorTexts() {
+  try {
+    const resp = await fetch('https://api.scryfall.com/cards/search?q=has%3Aflavortext+is%3Afirstprint+-is%3Areprint&order=random&page=1');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const fetched = data.data
+      .filter(c => c.flavor_text && c.flavor_text.length > 10 && c.flavor_text.length < 220)
+      .map(c => ({ text: c.flavor_text, source: c.name }));
+    if (fetched.length > 10) FLAVOR_TEXTS = fetched;
+  } catch (_) { /* keep fallback */ }
+}
+
+loadFlavorTexts();
 
 const BURN_CHARS = [' ', '.', ',', ':', ';', '=', '+', '*', '?', '%', '#', '@'];
 const BURN_CYCLE_MS = 6000;
