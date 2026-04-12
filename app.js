@@ -978,7 +978,6 @@ function renderPackBlock(header, cards) {
   const printBtn = document.createElement('button');
   printBtn.className = 'pack-print-btn';
   printBtn.textContent = 'Print Pack';
-  printBtn.disabled = !printerState.connected;
   printBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     printPack(cards, header, printBtn);
@@ -1533,7 +1532,8 @@ function titleCapital(str) {
 // PRINT ALL PACKS
 // ═══════════════════════════════════════════════════════════════
 async function printAllPacks() {
-  if (!printerState.connected || !state.allPackFaces.length) return;
+  if (!state.allPackFaces.length) return;
+  if (!(await ensurePrinterConnected())) return;
 
   state.isPrintingCanceled = false;
   state.isPrinting = true;
@@ -1640,10 +1640,7 @@ async function quickPrintFrom(inputId) {
   const input = document.getElementById(inputId);
   const raw = (input?.value || '').trim();
   if (!raw) return;
-  if (!printerState.connected) {
-    alert('Connect a printer first.');
-    return;
-  }
+  if (!(await ensurePrinterConnected())) return;
 
   _quickPrintBusy = true;
 
@@ -2198,7 +2195,7 @@ function init() {
       await navigator.clipboard.writeText(text);
       const btn = document.getElementById('copy-pool-btn');
       const orig = btn.textContent;
-      btn.textContent = '✓ Copied!';
+      btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = orig; }, 2000);
     } catch {
       const ta = document.createElement('textarea');
@@ -2209,7 +2206,7 @@ function init() {
       ta.remove();
       const btn = document.getElementById('copy-pool-btn');
       const orig = btn.textContent;
-      btn.textContent = '✓ Copied!';
+      btn.textContent = 'Copied!';
       setTimeout(() => { btn.textContent = orig; }, 2000);
     }
   });
@@ -2813,6 +2810,13 @@ async function printerSend(data) {
 
 // ── PRINTER MANAGEMENT ──
 
+/** If disconnected, opens the browser WebUSB device picker (same as Connect Printer). */
+async function ensurePrinterConnected() {
+  if (printerState.connected) return true;
+  await connectPrinter();
+  return printerState.connected;
+}
+
 async function connectPrinter() {
   if (!navigator.usb) {
     setPrinterStatus('WebUSB not supported -- use Chrome or Edge.', false);
@@ -2919,15 +2923,15 @@ function setPrintingIndicator(msg) {
   if (status) status.textContent = msg;
 }
 
-/** Re-syncs all pack print buttons and Print All button to current connection state */
+/** Re-syncs pack print / Print All visibility; print actions call ensurePrinterConnected() if needed */
 function updatePrinterUI() {
   document.querySelectorAll('.pack-print-btn').forEach(btn => {
-    btn.disabled = !printerState.connected;
+    btn.disabled = false;
   });
   const printAllBtn = document.getElementById('print-all-btn');
   if (printAllBtn) {
     printAllBtn.style.display = state.allPackFaces.length > 0 ? '' : 'none';
-    printAllBtn.disabled = !printerState.connected;
+    printAllBtn.disabled = false;
   }
 }
 
@@ -2973,10 +2977,7 @@ async function printCardFace(face, isLastFace, isLastCardInPack = true) {
  * Mirrors Python's print_card_list() and the pack header block in main().
  */
 async function printPack(faces, header, triggerBtn) {
-  if (!printerState.connected) {
-    alert('Connect a printer first using the "Connect Printer" button above.');
-    return;
-  }
+  if (!(await ensurePrinterConnected())) return;
 
   if (triggerBtn) {
     triggerBtn.disabled = true;
