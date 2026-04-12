@@ -934,7 +934,7 @@
       <div class="setup-card" style="margin-top: 20px;">
         <div class="form-group" style="margin-bottom: 12px;">
           <label style="font-size: 0.92rem; color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0;">Print a Card List</label>
-          <p class="hint" style="margin-top: 2px;">Paste a list to print. Format: <code>[qty] [card] [set] [collector num]</code></p>
+          <p class="hint" style="margin-top: 2px;">Paste a list to print. Format: <code>[qty] [name] ([set]) [collector#]</code>, <code>[qty] [name]</code>, or just <code>[name]</code></p>
         </div>
         <div class="form-group" style="margin-bottom: 12px;">
           <textarea id="print-list-input" placeholder="Paste your card list here..." style="min-height: 130px; font-size: 0.82rem;" aria-label="Card list to print"></textarea>
@@ -2085,6 +2085,9 @@ function renderModeInputs(mode) {
         <p class="hint">Find set codes on <a href="https://scryfall.com/sets" target="_blank">Scryfall Sets</a>.</p>
       </div>`;
     document.getElementById('packs-group').querySelector('label').textContent = 'Number of Packs';
+    document.getElementById('set-code-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('num-packs').focus(); }
+    });
 
   } else if (mode === 'chaos') {
     container.innerHTML = `
@@ -2139,9 +2142,14 @@ function renderModeInputs(mode) {
         <textarea id="cube-paste" placeholder="One card name per line (optional -- overrides Cube ID)"></textarea>
       </div>`;
 
-    // Sync cubeId from input
     const cubeInput = document.getElementById('cube-id-input');
     cubeInput.addEventListener('input', () => { state.cubeId = cubeInput.value.trim(); });
+    cubeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('num-packs').focus(); }
+    });
+    document.getElementById('cube-paste').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('num-packs').focus(); }
+    });
   }
 }
 
@@ -2378,17 +2386,34 @@ async function quickPrint() { return quickPrintFrom('quick-print-input'); }
 function parseCardList(text) {
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
   const entries = [];
-  // Format: [qty] [card name] ([set]) [collector#]
-  const re = /^(\d+)\s+(.+?)\s+\(([^)]+)\)\s+(\S+)$/;
+  const reFull = /^(\d+)\s+(.+?)\s+\(([^)]+)\)\s+(\S+)$/;
+  const reQtyName = /^(\d+)\s+(.+)$/;
   for (const line of lines) {
-    const m = line.match(re);
-    if (m) {
+    const mFull = line.match(reFull);
+    if (mFull) {
       entries.push({
-        qty: parseInt(m[1], 10),
-        name: m[2].trim(),
-        set: m[3].trim().toLowerCase(),
-        collectorNumber: m[4].trim(),
+        qty: parseInt(mFull[1], 10),
+        name: mFull[2].trim(),
+        set: mFull[3].trim().toLowerCase(),
+        collectorNumber: mFull[4].trim(),
       });
+    } else {
+      const mQty = line.match(reQtyName);
+      if (mQty) {
+        entries.push({
+          qty: parseInt(mQty[1], 10),
+          name: mQty[2].trim(),
+          set: null,
+          collectorNumber: null,
+        });
+      } else {
+        entries.push({
+          qty: 1,
+          name: line,
+          set: null,
+          collectorNumber: null,
+        });
+      }
     }
   }
   return entries;
@@ -2409,7 +2434,7 @@ async function loadCardList() {
 
   const entries = parseCardList(rawText);
   if (!entries.length) {
-    if (statusEl) statusEl.textContent = 'No valid lines found. Format: [qty] [name] ([set]) [collector#]';
+    if (statusEl) statusEl.textContent = 'No valid lines found.';
     setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 5000);
     return;
   }
@@ -2440,11 +2465,18 @@ async function loadCardList() {
 
   try {
     for (const entry of entries) {
-      setStatus(`Fetching ${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}...`);
-      const card = await fetchCardBySetCollector(entry.set, entry.collectorNumber);
+      let card = null;
+      if (entry.set && entry.collectorNumber) {
+        setStatus(`Fetching ${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}...`);
+        card = await fetchCardBySetCollector(entry.set, entry.collectorNumber);
+      } else {
+        setStatus(`Fetching ${entry.name} (random edition)...`);
+        card = await fetchCardByName(entry.name);
+      }
 
       if (!card) {
-        skipped.push(`${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}`);
+        const label = entry.set ? `${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}` : entry.name;
+        skipped.push(label);
         fetched += entry.qty;
         setProgress(Math.round((fetched / totalCards) * 100));
         continue;
@@ -2682,6 +2714,14 @@ function init() {
   tokensHeader.addEventListener('click', toggleTokens);
   tokensHeader.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTokens(); }
+  });
+
+  // Enter on num-packs / num-drafters triggers generate
+  document.getElementById('num-packs').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveSettings(); generateDraft(); }
+  });
+  document.getElementById('num-drafters').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); saveSettings(); generateDraft(); }
   });
 
   // Persist settings on form changes
