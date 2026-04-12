@@ -987,6 +987,19 @@
         <button class="btn-printer-connect" id="connect-printer-btn">Connect Printer</button>
       </div>
       <div id="error-banner" role="alert" aria-live="assertive"></div>
+      <div id="add-cards-bar" class="setup-card" style="display:none; margin-bottom: 20px;">
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size: 0.88rem; color: var(--text); font-weight: 600; text-transform: none; letter-spacing: 0;">Add More Cards</label>
+          <p class="hint" style="margin-top: 2px;">Same format: <code>[qty] [name] ([set]) [collector#]</code>, <code>[qty] [name]</code>, or just <code>[name]</code></p>
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <textarea id="add-cards-input" placeholder="Paste additional cards here..." style="min-height: 80px; font-size: 0.82rem;" aria-label="Additional cards to add"></textarea>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button class="btn-secondary" id="add-cards-btn" style="white-space: nowrap;">Add to List</button>
+          <span class="printer-status-text" id="add-cards-status" style="font-size: 0.78rem;" aria-live="polite"></span>
+        </div>
+      </div>
       <div id="packs-container"></div>
       <div id="tokens-section" class="pack-block" style="display:none">
         <div class="pack-header" id="tokens-header" tabindex="0" role="button" aria-expanded="false">
@@ -1000,6 +1013,7 @@
   </main>
 </div>
 
+<script src="nicknames.js"></script>
 <script>
 'use strict';
 
@@ -1674,6 +1688,8 @@ function showScreen(name) {
   document.getElementById('results-section').style.display = name === 'results' ? '' : 'none';
   const printerBar = document.getElementById('printer-bar');
   if (printerBar) printerBar.style.display = name === 'results' ? '' : 'none';
+  const addCardsBar = document.getElementById('add-cards-bar');
+  if (addCardsBar && name !== 'results') addCardsBar.style.display = 'none';
   if (name === 'progress') startFlavorCycle(); else stopFlavorCycle();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -2423,6 +2439,7 @@ async function quickPrintFrom(inputId) {
       qty = Math.max(1, parseInt(qtyMatch[1], 10));
       rest = qtyMatch[2].trim();
     }
+    rest = resolveNickname(rest);
 
     let card = null;
     const sc = parseSetCollector(rest);
@@ -2512,14 +2529,14 @@ function parseCardList(text) {
       if (mQty) {
         entries.push({
           qty: parseInt(mQty[1], 10),
-          name: mQty[2].trim(),
+          name: resolveNickname(mQty[2].trim()),
           set: null,
           collectorNumber: null,
         });
       } else {
         entries.push({
           qty: 1,
-          name: line,
+          name: resolveNickname(line),
           set: null,
           collectorNumber: null,
         });
@@ -2643,12 +2660,151 @@ async function loadCardList() {
 
     setProgress(100);
     updatePrinterUI();
+    document.getElementById('add-cards-bar').style.display = '';
   } catch (err) {
     showError(`List loading error: ${err.message}`);
     console.error(err);
   }
 
   if (btn) btn.disabled = false;
+}
+
+async function addMoreCards() {
+  const textarea = document.getElementById('add-cards-input');
+  const statusEl = document.getElementById('add-cards-status');
+  const rawText = (textarea?.value || '').trim();
+  if (!rawText) return;
+
+  const entries = parseCardList(rawText);
+  if (!entries.length) {
+    if (statusEl) statusEl.textContent = 'No valid lines found.';
+    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+    return;
+  }
+
+  const addBtn = document.getElementById('add-cards-btn');
+  if (addBtn) { addBtn.disabled = true; addBtn.textContent = 'Loading...'; }
+  if (statusEl) statusEl.textContent = 'Fetching cards...';
+
+  try {
+    const seenKeys = new Set();
+    const idList = [];
+    for (const entry of entries) {
+      const key = (entry.set && entry.collectorNumber)
+        ? `sc:${entry.set}/${entry.collectorNumber}`
+        : `n:${entry.name.toLowerCase()}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        idList.push((entry.set && entry.collectorNumber)
+          ? { set: entry.set, collector_number: entry.collectorNumber }
+          : { name: entry.name });
+      }
+    }
+
+    const { found: batchFound } = await fetchCardsCollection(idList);
+
+    const cardLookup = {};
+    for (const card of batchFound) {
+      if (card.set && card.collector_number) {
+        cardLookup[`sc:${card.set}/${card.collector_number}`] = card;
+      }
+      cardLookup[`n:${(card.name || '').toLowerCase()}`] = card;
+    }
+
+    const newFaces = [];
+    const skipped = [];
+    for (const entry of entries) {
+      const key = (entry.set && entry.collectorNumber)
+        ? `sc:${entry.set}/${entry.collectorNumber}`
+        : `n:${entry.name.toLowerCase()}`;
+      const card = cardLookup[key];
+      if (!card) {
+        skipped.push(entry.set ? `${entry.name} (${entry.set.toUpperCase()}) ${entry.collectorNumber}` : entry.name);
+      } else {
+        const faces = parseScryfallCard(card);
+        for (let c = 0; c < entry.qty; c++) newFaces.push(...faces);
+      }
+    }
+
+    if (!newFaces.length) {
+      if (statusEl) statusEl.textContent = 'No cards found.';
+      setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+      return;
+    }
+
+    // Append to the existing pack block (the first/only one for card lists)
+    const existingBlock = document.querySelector('#packs-container .pack-block');
+    if (existingBlock) {
+      const grid = existingBlock.querySelector('.card-grid');
+      const packIdx = 0;
+      const existingFaces = state.allPackFaces[packIdx] || [];
+
+      let cardGroupIdx = 0;
+      let i = 0;
+      while (i < existingFaces.length) {
+        if (existingFaces[i].isDFC && existingFaces[i].dfcSide === 'front' && existingFaces[i + 1]?.dfcSide === 'back') {
+          i += 2;
+        } else {
+          i++;
+        }
+        cardGroupIdx++;
+      }
+
+      existingFaces.push(...newFaces);
+
+      i = 0;
+      while (i < newFaces.length) {
+        const face = newFaces[i];
+        let el;
+        if (face.isDFC && face.dfcSide === 'front' && newFaces[i + 1]?.dfcSide === 'back') {
+          el = buildDFCElement(face, newFaces[i + 1]);
+          i += 2;
+        } else {
+          el = buildCardElement(face);
+          i++;
+        }
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('role', 'button');
+        const capturedIdx = cardGroupIdx;
+        const openCard = (e) => {
+          if (e.target.closest('.flip-btn')) return;
+          openLightbox(packIdx, capturedIdx);
+        };
+        el.addEventListener('click', openCard);
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(e); }
+        });
+        grid.appendChild(el);
+        cardGroupIdx++;
+      }
+
+      // Update badge counts
+      const badges = existingBlock.querySelectorAll('.pack-badge');
+      const lastBadge = badges[badges.length - 1];
+      if (lastBadge) lastBadge.textContent = `${existingFaces.length} cards`;
+      const header = state.allPackHeaders[packIdx];
+      if (header) header.setName = `${existingFaces.length} card(s)`;
+      const metaEl = existingBlock.querySelector('.pack-meta');
+      if (metaEl) metaEl.textContent = `${existingFaces.length} card(s)`;
+    }
+
+    if (skipped.length) {
+      const el = document.getElementById('error-banner');
+      const existing = el.innerHTML;
+      el.innerHTML = existing + `<div class="banner warn">Skipped ${skipped.length} card(s) not found: ${escHtml(skipped.join(', '))}</div>`;
+    }
+
+    textarea.value = '';
+    if (statusEl) statusEl.textContent = `Added ${newFaces.length} card(s).`;
+    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 4000);
+    updatePrinterUI();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Error: ${err.message}`;
+    console.error(err);
+    setTimeout(() => { if (statusEl) statusEl.textContent = ''; }, 5000);
+  } finally {
+    if (addBtn) { addBtn.disabled = false; addBtn.textContent = 'Add to List'; }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2840,6 +2996,9 @@ function init() {
 
   // Print List (setup screen) — loads into results view
   document.getElementById('print-list-btn').addEventListener('click', () => loadCardList());
+
+  // Add More Cards (results screen, card list mode)
+  document.getElementById('add-cards-btn').addEventListener('click', () => addMoreCards());
 
   // Tokens section collapse/expand
   const tokensHeader = document.getElementById('tokens-header');
