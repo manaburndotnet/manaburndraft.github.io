@@ -60,7 +60,7 @@ python3 instantdraft.py
 
 - A modern browser with WebUSB support (Chrome/Edge recommended)
 - Internet access (Scryfall API + card images)
-- Optional: ESC/POS USB thermal printer (80mm recommended)
+- Optional: ESC/POS USB thermal printer (80mm auto-cutter recommended, all others untested)
 - 80mm thermal paper
 
 ### Install / setup
