@@ -1891,28 +1891,71 @@ async function generateDraft() {
       titleStr = `${titleCapital(state.selectedBlock)} Block Draft`;
 
     } else if (state.mode === 'cube') {
-      // Check for pasted card list first
       const pasteEl = document.getElementById('cube-paste');
       const pastedText = pasteEl?.value.trim();
-      let rawList = null;
+      let cubeEntries = [];
 
       if (pastedText) {
-        rawList = pastedText.split('\n').map(l => l.trim()).filter(Boolean);
+        cubeEntries = parseCardList(pastedText);
       } else {
         let cId = (document.getElementById('cube-id-input')?.value || '').trim();
         const urlMatch = cId.match(/cube\/(?:list|overview|playtest)\/([^/?&]+)/i);
         if (urlMatch) cId = urlMatch[1];
         state.cubeId = cId;
-        rawList = await getCubeList(cId);
+        const rawNames = await getCubeList(cId);
+        if (rawNames) {
+          cubeEntries = rawNames.map(name => ({ qty: 1, name, set: null, collectorNumber: null }));
+        }
       }
 
-      if (!rawList || !rawList.length) {
+      if (!cubeEntries.length) {
         showError('Could not fetch cube list from CubeCobra. Check the cube ID and try again. You can also paste a card list directly into the text area below the cube ID field.');
         showScreen('setup');
         genBtn.disabled = false;
         return;
       }
-      cubeList = shuffleArray([...rawList]);
+
+      setStatus('Fetching cube card data...');
+      const cubeFetchCache = {};
+      const cubePool = [];
+      let cubeFetched = 0;
+      const cubeTotal = cubeEntries.length;
+
+      for (const entry of cubeEntries) {
+        let card = null;
+        if (entry.set && entry.collectorNumber) {
+          const key = `${entry.set}/${entry.collectorNumber}`;
+          if (!cubeFetchCache[key]) {
+            setStatus(`Fetching ${entry.name} (${entry.set.toUpperCase()}) #${entry.collectorNumber}...`);
+            cubeFetchCache[key] = await fetchCardBySetCollector(entry.set, entry.collectorNumber);
+          }
+          card = cubeFetchCache[key];
+        } else {
+          const key = entry.name.toLowerCase();
+          if (!cubeFetchCache[key]) {
+            setStatus(`Fetching ${entry.name}...`);
+            cubeFetchCache[key] = await fetchCardByName(entry.name);
+          }
+          card = cubeFetchCache[key];
+        }
+
+        if (card) {
+          for (let c = 0; c < entry.qty; c++) cubePool.push(card);
+        }
+        cubeFetched++;
+        setProgress(Math.round((cubeFetched / cubeTotal) * 30));
+      }
+
+      if (!cubePool.length) {
+        showError('No cards could be fetched for this cube. Check your list or cube ID.');
+        showScreen('setup');
+        genBtn.disabled = false;
+        return;
+      }
+
+      shuffleArray(cubePool);
+      cubeList = cubePool;
+      cubeIndex = 0;
       draftSequence = Array(state.numPacks).fill('cube');
       titleStr = `Cube Draft -- ${state.cubeId || 'Pasted List'}`;
 
@@ -1950,19 +1993,19 @@ async function generateDraft() {
       let header = {};
 
       if (currentCode === 'cube') {
-        header = { title: `Pack ${packIdx + 1}`, setName: `Cube: ${state.cubeId}`, type: 'Cube Pack' };
+        header = { title: `Pack ${packIdx + 1}`, setName: `Cube: ${state.cubeId || 'Pasted List'}`, type: 'Cube Pack' };
         setStatus(`Drawing cube pack ${packIdx + 1} of ${total}...`);
 
-        while (packCards.length < 15) {
-          if (cubeIndex >= cubeList.length) {
-            cubeList = shuffleArray([...cubeList]);
-            cubeIndex = 0;
-            setStatus('Cube exhausted -- reshuffling...');
-          }
-          const cardName = cubeList[cubeIndex++];
-          const data = await fetchCardByName(cardName);
-          if (data) packCards.push(data);
+        if (cubeIndex >= cubeList.length) {
+          setStatus(`Cube pool exhausted — not enough cards for ${total} packs.`);
+          break;
         }
+
+        while (packCards.length < 15 && cubeIndex < cubeList.length) {
+          packCards.push(cubeList[cubeIndex++]);
+        }
+
+        if (!packCards.length) break;
 
       } else {
         // Standard set / chaos / block
