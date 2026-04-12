@@ -2,7 +2,7 @@
 
 **Live at [draft.manaburn.net](https://draft.manaburn.net)**
 
-Generate MTG draft packs (Set, Chaos, Block, Cube), preview cards with a full-size lightbox, and print thermal proxies from either:
+Generate booster draft packs (Set, Chaos, Block, Cube), preview cards with a full-size lightbox, and print thermal proxies from either:
 
 - a browser-based web app (`index.html`) -- no install required
 - a Python CLI (`instantdraft.py`)
